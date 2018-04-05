@@ -18,7 +18,7 @@ from yolo3.model import yolo_eval
 
 class YOLO(object):
     def __init__(self):
-        self.model_path = 'model_data/yolo.h5'
+        self.model_path = 'model_data/yolov3.h5'
         self.anchors_path = 'model_data/yolo_anchors.txt'
         self.classes_path = 'model_data/coco_classes.txt'
         self.score = 0.3
