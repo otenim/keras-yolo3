@@ -70,8 +70,6 @@ class YOLO(object):
         return boxes, scores, classes
 
     def detect_image(self, image):
-        start = time.time()
-
         resized_image = image.resize(tuple(reversed(self.model_image_size)), Image.BICUBIC)
         image_data = np.array(resized_image, dtype='float32')
 
@@ -85,8 +83,6 @@ class YOLO(object):
                 self.input_image_shape: [image.size[1], image.size[0]],
                 K.learning_phase(): 0
             })
-
-        print('Found {} boxes for {}'.format(len(out_boxes), 'img'))
 
         font = ImageFont.truetype(font='font/FiraMono-Medium.otf', size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
         thickness = (image.size[0] + image.size[1]) // 300
@@ -105,7 +101,6 @@ class YOLO(object):
             left = max(0, np.floor(left + 0.5).astype('int32'))
             bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
-            print(label, (left, top), (right, bottom))
 
             if top - label_size[1] >= 0:
                 text_origin = np.array([left, top - label_size[1]])
@@ -122,9 +117,6 @@ class YOLO(object):
                 fill=self.colors[c])
             draw.text(text_origin, label, fill=(0, 0, 0), font=font)
             del draw
-
-        end = time.time()
-        print(end - start)
         return image
 
     def close_session(self):
@@ -160,7 +152,7 @@ parser.add_argument('--measure_predtime', help='Whether to measure prediction ti
 
 if __name__ == '__main__':
     yolo = YOLO()
-
+    args = parser.parse_args()
     input_img = Image.open(args.input_img)
     output_img = yolo.detect_image(input_img)
     output_img.save(args.output_img)
