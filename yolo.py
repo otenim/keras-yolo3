@@ -8,12 +8,12 @@ import colorsys
 import os
 import random
 import time
-
+import argparse
 import numpy as np
+import time
 from keras import backend as K
 from keras.models import load_model
 from PIL import Image, ImageDraw, ImageFont
-
 from yolo3.model import yolo_eval
 
 class YOLO(object):
@@ -34,7 +34,7 @@ class YOLO(object):
             class_names = f.readlines()
         class_names = [c.strip() for c in class_names]
         return class_names
-        
+
     def _get_anchors(self):
         anchors_path = os.path.expanduser(self.anchors_path)
         with open(anchors_path) as f:
@@ -49,9 +49,9 @@ class YOLO(object):
 
         self.yolo_model = load_model(model_path)
         print('{} model, anchors, and classes loaded.'.format(model_path))
-        
+
         self.model_image_size = self.yolo_model.layers[0].input_shape[1:3]
-        
+
         # Generate colors for drawing bounding boxes.
         hsv_tuples = [(x / len(self.class_names), 1., 1.)
                       for x in range(len(self.class_names))]
@@ -62,7 +62,7 @@ class YOLO(object):
         random.seed(10101)  # Fixed seed for consistent colors across runs.
         random.shuffle(self.colors)  # Shuffle colors to decorrelate adjacent classes.
         random.seed(None)  # Reset seed to default.
-        
+
         # Generate output tensor targets for filtered bounding boxes.
         # TODO: Wrap these backend operations with Keras layers.
         self.input_image_shape = K.placeholder(shape=(2, ))
@@ -85,33 +85,33 @@ class YOLO(object):
                 self.input_image_shape: [image.size[1], image.size[0]],
                 K.learning_phase(): 0
             })
-        
+
         print('Found {} boxes for {}'.format(len(out_boxes), 'img'))
 
         font = ImageFont.truetype(font='font/FiraMono-Medium.otf', size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
         thickness = (image.size[0] + image.size[1]) // 300
-        
+
         for i, c in reversed(list(enumerate(out_classes))):
             predicted_class = self.class_names[c]
             box = out_boxes[i]
             score = out_scores[i]
-            
+
             label = '{} {:.2f}'.format(predicted_class, score)
             draw = ImageDraw.Draw(image)
             label_size = draw.textsize(label, font)
-            
+
             top, left, bottom, right = box
             top = max(0, np.floor(top + 0.5).astype('int32'))
             left = max(0, np.floor(left + 0.5).astype('int32'))
             bottom = min(image.size[1], np.floor(bottom + 0.5).astype('int32'))
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
             print(label, (left, top), (right, bottom))
-            
+
             if top - label_size[1] >= 0:
                 text_origin = np.array([left, top - label_size[1]])
             else:
                 text_origin = np.array([left, top + 1])
-                
+
             # My kingdom for a good redistributable image drawing library.
             for i in range(thickness):
                 draw.rectangle(
@@ -122,7 +122,7 @@ class YOLO(object):
                 fill=self.colors[c])
             draw.text(text_origin, label, fill=(0, 0, 0), font=font)
             del draw
-            
+
         end = time.time()
         print(end - start)
         return image
@@ -153,8 +153,24 @@ def detect_img(yolo):
             r_image.show()
     yolo.close_session()
 
+parser = argparse.ArgumentParser()
+parser.add_argument('input_img', help='Path to an input image.')
+parser.add_argument('output_img', help='Path to the output image.')
+parser.add_argument('--measure_predtime', help='Whether to measure prediction time.', type=bool, default=False)
 
 if __name__ == '__main__':
     yolo = YOLO()
-    detect_img(yolo)
+
+    input_img = Image.open(args.input_img)
+    output_img = yolo.detect_image(input_img)
+    output_img.save(args.output_img)
+
+    if args.measure_predtime:
+        times = []
+        for i in range(100):
+            stime = time.time()
+            yolo.detect_image(input_img)
+            etime = time.time()
+            times.append(etime - stime)
+        print('median prediction time: %f[sec]' % np.median(times))
     #detect_video(yolo)
