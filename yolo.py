@@ -17,10 +17,10 @@ from PIL import Image, ImageDraw, ImageFont
 from yolo3.model import yolo_eval
 
 class YOLO(object):
-    def __init__(self):
-        self.model_path = 'model_data/yolov3.h5'
-        self.anchors_path = 'model_data/yolo_anchors.txt'
-        self.classes_path = 'model_data/coco_classes.txt'
+    def __init__(self, model_path, anchors_path, classes_path):
+        self.model_path = model_path
+        self.anchors_path = anchors_path
+        self.classes_path = classes_path
         self.score = 0.3
         self.iou = 0.5
         self.class_names = self._get_class()
@@ -48,8 +48,6 @@ class YOLO(object):
         assert model_path.endswith('.h5'), 'Keras model must be a .h5 file.'
 
         self.yolo_model = load_model(model_path)
-        print('{} model, anchors, and classes loaded.'.format(model_path))
-
         self.model_image_size = self.yolo_model.layers[0].input_shape[1:3]
 
         # Generate colors for drawing bounding boxes.
@@ -121,48 +119,3 @@ class YOLO(object):
 
     def close_session(self):
         self.sess.close()
-
-def detect_video(yolo):
-    from VideoCapture import Device
-    camera = Device()
-    while True:
-        frame = camera.getImage()
-        image = yolo.detect_image(frame)
-        image.show()
-    yolo.close_session()
-
-
-def detect_img(yolo):
-    while True:
-        img = input('Input image filename:')
-        try:
-            image = Image.open(img)
-        except:
-            print('Open Error! Try again!')
-            continue
-        else:
-            r_image = yolo.detect_image(image)
-            r_image.show()
-    yolo.close_session()
-
-parser = argparse.ArgumentParser()
-parser.add_argument('input_img', help='Path to an input image.')
-parser.add_argument('output_img', help='Path to the output image.')
-parser.add_argument('--measure_predtime', help='Whether to measure prediction time.', type=bool, default=False)
-
-if __name__ == '__main__':
-    yolo = YOLO()
-    args = parser.parse_args()
-    input_img = Image.open(args.input_img)
-    output_img = yolo.detect_image(input_img)
-    output_img.save(args.output_img)
-
-    if args.measure_predtime:
-        times = []
-        for i in range(100):
-            stime = time.time()
-            yolo.detect_image(input_img)
-            etime = time.time()
-            times.append(etime - stime)
-        print('median prediction time: %f[sec]' % np.median(times))
-    #detect_video(yolo)
